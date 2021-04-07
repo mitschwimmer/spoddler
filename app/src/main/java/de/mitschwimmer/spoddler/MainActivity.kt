@@ -1,62 +1,41 @@
-package de.mitschwimmer.spoddler;
+package de.mitschwimmer.spoddler
 
-import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.spotify.connectstate.Connect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.core.config.Configurator
+import xyz.gianlu.librespot.common.Log4JUncaughtExceptionHandler
+import xyz.gianlu.librespot.core.Session
 
-import android.os.Bundle;
+class MainActivity : AppCompatActivity() {
+    private lateinit var player: Player
 
-import org.apache.logging.log4j.core.config.Configurator;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        Configurator.setRootLevel(Level.DEBUG)
+        Thread.setDefaultUncaughtExceptionHandler(Log4JUncaughtExceptionHandler())
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
-import java.util.Objects;
+        // TODO do not use global scope and handle exceptions
+        // TODO fix "W/System: A resource failed to call close."
+        GlobalScope.launch(Dispatchers.IO) {
+            val session = Session.Builder(Session.Configuration.Builder().setStoreCredentials(false).setCacheEnabled(false).build())
+                .setPreferredLocale("en")
+                .setDeviceType(Connect.DeviceType.SMARTPHONE)
+                .setDeviceName("librespot-java")
+                .userPass("karl@mitschwimmer.de", "rC3H8p6Wt8kQsw")
+                .setDeviceId(null).create()
 
-import de.mitschwimmer.spoddler.events.EventsShell;
-import xyz.gianlu.librespot.common.Log4JUncaughtExceptionHandler;
-import xyz.gianlu.librespot.core.Session;
-import xyz.gianlu.librespot.mercury.MercuryClient;
-
-public class MainActivity extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        FileConfiguration conf = null;
-        try {
-            conf = new FileConfiguration((String) null);
-        } catch (IOException e) {
-            e.printStackTrace();
+            onSessionCreated(session)
         }
-        Configurator.setRootLevel(conf.loggingLevel());
-        Thread.setDefaultUncaughtExceptionHandler(new Log4JUncaughtExceptionHandler());
+    }
 
-
-        Session session = null;
-        try {
-            session = conf.initSessionBuilder().create();
-        } catch (IOException | GeneralSecurityException | Session.SpotifyAuthenticationException | MercuryClient.MercuryException e) {
-            e.printStackTrace();
-        }
-        Player player = new Player(conf.toPlayer(), session);
-
-        Session finalSession = session;
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                player.close();
-                finalSession.close();
-            } catch (IOException ignored) {
-            }
-        }));
-
-        EventsShell.Configuration eventsShellConf = conf.toEventsShell();
-        if (eventsShellConf.enabled) {
-            EventsShell eventsShell = new EventsShell(eventsShellConf);
-            Objects.requireNonNull(session);
-            session.addReconnectionListener(eventsShell);
-            player.addEventsListener(eventsShell);
-        }
-
+    private fun onSessionCreated(session: Session) {
+        player = Player(PlayerConfiguration.Builder().build(), session)
+        println("I am fine")
     }
 }
