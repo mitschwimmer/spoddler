@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.mixing;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +21,8 @@ import de.mitschwimmer.spoddler.soundadapter.SourceDataLine;
  */
 public final class AudioSink implements Runnable, Closeable {
     public static final AudioFormat DEFAULT_FORMAT = new AudioFormat(44100, 16, 2, true, false);
-    private static final Logger LOGGER = LogManager.getLogger(AudioSink.class);
+    private static final String TAG = "spoddler.EventsMetadataPipe";
+
     private final Object pauseLock = new Object();
     private final Output output;
     private final MixingLine mixing = new MixingLine();
@@ -203,7 +204,7 @@ public final class AudioSink implements Runnable, Closeable {
                     line = LineHelper.getLineFor(conf, format);
                     line.open(format);
                 } catch (LineUnavailableException | LineHelper.MixerException ex) {
-                    LOGGER.warn("Failed opening like for custom format '{}'. Opening default.", format);
+                    Log.w(TAG, String.format("Failed opening like for custom format '{%s}'. Opening default.", format));
                     line = LineHelper.getLineFor(conf, DEFAULT_FORMAT);
                     line.open(DEFAULT_FORMAT);
                 }
@@ -244,9 +245,9 @@ public final class AudioSink implements Runnable, Closeable {
                                     .redirectError(ProcessBuilder.Redirect.INHERIT).start();
                             p.waitFor();
                             if (p.exitValue() != 0)
-                                LOGGER.warn("Failed creating pipe! {exit: {}}", p.exitValue());
+                                Log.w(TAG, String.format("Failed creating pipe! {exit: {%s}}", p.exitValue()));
                             else
-                                LOGGER.info("Created pipe: " + pipe);
+                                Log.i(TAG, "Created pipe: " + pipe);
                         } catch (InterruptedException ex) {
                             throw new IllegalStateException(ex);
                         }

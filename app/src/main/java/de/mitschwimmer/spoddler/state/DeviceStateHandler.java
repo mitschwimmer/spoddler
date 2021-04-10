@@ -1,5 +1,7 @@
 package de.mitschwimmer.spoddler.state;
 
+import android.util.*;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -8,9 +10,7 @@ import com.google.protobuf.TextFormat;
 import com.spotify.connectstate.Connect;
 import com.spotify.connectstate.Player;
 import com.spotify.context.ContextTrackOuterClass.ContextTrack;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,18 +31,21 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.*;
+import java.util.Base64;
+
+import static java.lang.String.format;
 
 /**
  * @author Gianlu
  */
 public final class DeviceStateHandler implements Closeable, DealerClient.MessageListener, DealerClient.RequestListener {
-    private static final Logger LOGGER = LogManager.getLogger(DeviceStateHandler.class);
+    private static final String TAG = "spoddler.DeviceStateHandler";
 
     static {
         try {
             ProtoUtils.overrideDefaultValue(Connect.PutStateRequest.getDescriptor().findFieldByName("has_been_playing_for_ms"), -1);
         } catch (IllegalAccessException | NoSuchFieldException ex) {
-            LOGGER.warn("Failed changing default value!", ex);
+            Log.w(TAG, "Failed changing default value!", ex);
         }
     }
 
@@ -103,7 +106,7 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
 
     private void notifyCommand(@NotNull Endpoint endpoint, @NotNull CommandBody data) {
         if (listeners.isEmpty()) {
-            LOGGER.warn("Cannot dispatch command because there are no listeners. {command: {}}", endpoint);
+            Log.w(TAG, format("Cannot dispatch command because there are no listeners. {command: {%s}}", endpoint));
             return;
         }
 
@@ -111,7 +114,7 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             try {
                 listener.command(endpoint, data);
             } catch (InvalidProtocolBufferException ex) {
-                LOGGER.error("Failed parsing command!", ex);
+                Log.e(TAG, "Failed parsing command!", ex);
             }
         }
     }
@@ -134,7 +137,7 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
 
         if (connectionId == null || !connectionId.equals(newer)) {
             connectionId = newer;
-            LOGGER.debug("Updated Spotify-Connection-Id: " + connectionId);
+            Log.d(TAG, "Updated Spotify-Connection-Id: " + connectionId);
             notifyReady();
         }
     }
@@ -157,13 +160,13 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             Connect.ClusterUpdate update = Connect.ClusterUpdate.parseFrom(payload);
 
             long now = TimeProvider.currentTimeMillis();
-            LOGGER.trace("Received cluster update at {}: {}", () -> now, () -> TextFormat.shortDebugString(update));
+            Log.v(TAG, format("Received cluster update at {%s}: {%s}", now, TextFormat.shortDebugString(update)));
 
             long ts = update.getCluster().getTimestamp() - 3000; // Workaround
             if (!session.deviceId().equals(update.getCluster().getActiveDeviceId()) && isActive() && now > startedPlayingAt() && ts > startedPlayingAt())
                 notifyNotActive();
         } else {
-            LOGGER.warn("Message left unhandled! {uri: {}}", uri);
+            Log.w(TAG, format("Message left unhandled! {uri: {%s}}", uri));
         }
     }
 
@@ -195,7 +198,7 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (!putState.getIsActive()) {
                 long now = TimeProvider.currentTimeMillis();
                 putState.setIsActive(true).setStartedPlayingAt(now);
-                LOGGER.debug("Device is now active. {ts: {}}", now);
+                Log.d(TAG, "Device is now active. {ts: " + now + "}");
             }
         } else {
             putState.setIsActive(false).clearStartedPlayingAt();
@@ -225,7 +228,7 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
         }
 
         notifyVolumeChange();
-        LOGGER.trace("Update volume. {volume: {}/{}}", val, de.mitschwimmer.spoddler.Player.VOLUME_MAX);
+        Log.v(TAG, format("Update volume. {volume: {%s}/{%s}}", val, de.mitschwimmer.spoddler.Player.VOLUME_MAX));
     }
 
     @Override
@@ -245,15 +248,11 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
     private void putConnectState(@NotNull Connect.PutStateRequest req) {
         try {
             session.api().putConnectState(connectionId, req);
-            if (LOGGER.getLevel().isLessSpecificThan(Level.TRACE)) {
-                LOGGER.info("Put state. {ts: {}, connId: {}, reason: {}, request: {}}", req.getClientSideTimestamp(),
-                        Utils.truncateMiddle(connectionId, 10), req.getPutStateReason(), TextFormat.shortDebugString(putState));
-            } else {
-                LOGGER.info("Put state. {ts: {}, connId: {}, reason: {}}", req.getClientSideTimestamp(),
-                        Utils.truncateMiddle(connectionId, 10), req.getPutStateReason());
-            }
+            Log.i(TAG, format("Put state. {ts: {%s}, connId: {%s}, reason: {%s}, request: {%s}}", req.getClientSideTimestamp(),
+                    Utils.truncateMiddle(connectionId, 10), req.getPutStateReason(), TextFormat.shortDebugString(putState)));
+
         } catch (IOException | MercuryClient.MercuryException ex) {
-            LOGGER.error("Failed updating state.", ex);
+            Log.e(TAG, "Failed updating state.", ex);
         }
     }
 
@@ -299,7 +298,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (options == null) return null;
 
             JsonElement elm;
-            if ((elm = options.get("initially_paused")) != null && elm.isJsonPrimitive()) return elm.getAsBoolean();
+            if ((elm = options.get("initially_paused")) != null && elm.isJsonPrimitive())
+                return elm.getAsBoolean();
             else return null;
         }
 
@@ -309,7 +309,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (context == null) return null;
 
             JsonElement elm;
-            if ((elm = context.get("uri")) != null && elm.isJsonPrimitive()) return elm.getAsString();
+            if ((elm = context.get("uri")) != null && elm.isJsonPrimitive())
+                return elm.getAsString();
             else return null;
         }
 
@@ -347,7 +348,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (parent == null) return null;
 
             JsonElement elm;
-            if ((elm = parent.get("track_uid")) != null && elm.isJsonPrimitive()) return elm.getAsString();
+            if ((elm = parent.get("track_uid")) != null && elm.isJsonPrimitive())
+                return elm.getAsString();
             else return null;
         }
 
@@ -360,7 +362,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (parent == null) return null;
 
             JsonElement elm;
-            if ((elm = parent.get("track_uri")) != null && elm.isJsonPrimitive()) return elm.getAsString();
+            if ((elm = parent.get("track_uri")) != null && elm.isJsonPrimitive())
+                return elm.getAsString();
             else return null;
         }
 
@@ -396,7 +399,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (parent == null) return null;
 
             JsonElement elm;
-            if ((elm = parent.get("track_index")) != null && elm.isJsonPrimitive()) return elm.getAsInt();
+            if ((elm = parent.get("track_index")) != null && elm.isJsonPrimitive())
+                return elm.getAsInt();
             else return null;
         }
 
@@ -406,7 +410,8 @@ public final class DeviceStateHandler implements Closeable, DealerClient.Message
             if (options == null) return null;
 
             JsonElement elm;
-            if ((elm = options.get("seek_to")) != null && elm.isJsonPrimitive()) return elm.getAsInt();
+            if ((elm = options.get("seek_to")) != null && elm.isJsonPrimitive())
+                return elm.getAsInt();
             else return null;
         }
     }

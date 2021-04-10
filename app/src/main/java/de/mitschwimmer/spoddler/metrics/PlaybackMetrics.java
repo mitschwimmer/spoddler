@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.metrics;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +18,8 @@ import java.util.List;
  * @author devgianlu
  */
 public class PlaybackMetrics {
-    private static final Logger LOGGER = LogManager.getLogger(PlaybackMetrics.class);
+    private static final String TAG = "spoddler.PlaybackMetrics";
+
     public final PlayableId id;
     final String playbackId;
     final String featureVersion;
@@ -84,7 +85,7 @@ public class PlaybackMetrics {
 
     public void sendEvents(@NotNull Session session, @NotNull DeviceStateHandler device) {
         if (player == null || player.contentMetrics == null || device.getLastCommandSentByDeviceId() == null) {
-            LOGGER.warn("Did not send event because of missing metrics: " + playbackId);
+            Log.w(TAG, "Did not send event because of missing metrics: " + playbackId);
             return;
         }
 

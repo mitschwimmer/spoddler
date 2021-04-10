@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.events;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -33,7 +33,7 @@ public final class EventsMetadataPipe implements Player.EventsListener, Closeabl
     private static final String CODE_PRGR = "70726772";
     private static final String CODE_PICT = "50494354";
     private static final String CODE_PFLS = "70666C73";
-    private static final Logger LOGGER = LogManager.getLogger(EventsMetadataPipe.class);
+    private static final String TAG = "spoddler.EventsMetadataPipe";
     private final File file;
     private FileOutputStream out;
 
@@ -53,7 +53,7 @@ public final class EventsMetadataPipe implements Player.EventsListener, Closeabl
         try {
             send(type, code, payload);
         } catch (IOException ex) {
-            LOGGER.error("Failed sending metadata through pipe!", ex);
+            Log.e(TAG,"Failed sending metadata through pipe!", ex);
         }
     }
 
@@ -62,12 +62,12 @@ public final class EventsMetadataPipe implements Player.EventsListener, Closeabl
         try {
             image = player.currentCoverImage();
         } catch (IOException ex) {
-            LOGGER.warn("Failed downloading image.", ex);
+            Log.w(TAG, "Failed downloading image.", ex);
             return;
         }
 
         if (image == null) {
-            LOGGER.warn("No image found in metadata.");
+            Log.w(TAG, "No image found in metadata.");
             return;
         }
 
@@ -78,10 +78,10 @@ public final class EventsMetadataPipe implements Player.EventsListener, Closeabl
         if (out == null) out = new FileOutputStream(file);
 
         if (payload != null && payload.length > 0) {
-            out.write(String.format("<item><type>%s</type><code>%s</code><length>%d</length>\n<data encoding=\"base64\">%s</data></item>\n", type, code,
+            out.write(String.format("<item><type>%s</type><code>%s</code><length>%d</length>%n<data encoding=\"base64\">%s</data></item>%n", type, code,
                     payload.length, new String(Base64.getEncoder().encode(payload), StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8));
         } else {
-            out.write(String.format("<item><type>%s</type><code>%s</code><length>0</length></item>\n", type, code).getBytes(StandardCharsets.UTF_8));
+            out.write(String.format("<item><type>%s</type><code>%s</code><length>0</length></item>%n", type, code).getBytes(StandardCharsets.UTF_8));
         }
     }
 

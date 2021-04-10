@@ -1,10 +1,12 @@
 package de.mitschwimmer.spoddler.codecs;
 
+import android.util.*;
+
 import com.spotify.metadata.Metadata;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
 import xyz.gianlu.librespot.audio.format.AudioQualityPicker;
 import xyz.gianlu.librespot.audio.format.SuperAudioFormat;
 import xyz.gianlu.librespot.common.Utils;
@@ -15,7 +17,7 @@ import java.util.List;
  * @author Gianlu
  */
 public final class VorbisOnlyAudioQuality implements AudioQualityPicker {
-    private static final Logger LOGGER = LogManager.getLogger(VorbisOnlyAudioQuality.class);
+    private static final String TAG = "spoddler.VorbisOnlyAudioQuality";
     private final AudioQuality preferred;
 
     public VorbisOnlyAudioQuality(@NotNull AudioQuality preferred) {
@@ -39,9 +41,9 @@ public final class VorbisOnlyAudioQuality implements AudioQualityPicker {
         if (vorbis == null) {
             vorbis = getVorbisFile(files);
             if (vorbis != null)
-                LOGGER.warn("Using {} because preferred {} couldn't be found.", vorbis.getFormat(), preferred);
+                Log.w(TAG, String.format("Using {%s} because preferred {%s} couldn't be found.", vorbis.getFormat(), preferred));
             else
-                LOGGER.fatal("Couldn't find any Vorbis file, available: {}", Utils.formatsToString(files));
+                Log.e(TAG, String.format("Couldn't find any Vorbis file, available: {%s}", Utils.formatsToString(files)));
         }
 
         return vorbis;

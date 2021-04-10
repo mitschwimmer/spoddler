@@ -1,5 +1,7 @@
 package de.mitschwimmer.spoddler.playback;
 
+import android.util.*;
+
 import de.mitschwimmer.spoddler.PlayerConfiguration;
 import de.mitschwimmer.spoddler.StateWrapper;
 import de.mitschwimmer.spoddler.TrackOrEpisode;
@@ -13,8 +15,6 @@ import de.mitschwimmer.spoddler.metrics.PlayerMetrics;
 import de.mitschwimmer.spoddler.mixing.AudioSink;
 import de.mitschwimmer.spoddler.mixing.MixingLine;
 import javazoom.jl.decoder.BitstreamException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.gianlu.librespot.audio.HaltListener;
@@ -34,6 +34,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.String.format;
+
 /**
  * An object representing one single content/track/episode associated with its playback ID. This is responsible for IO operations,
  * decoding, metrics, crossfade and instant notifications.
@@ -44,7 +46,8 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
     static final int INSTANT_PRELOAD = 1;
     static final int INSTANT_START_NEXT = 2;
     static final int INSTANT_END = 3;
-    private static final Logger LOGGER = LogManager.getLogger(PlayerQueueEntry.class);
+    private static final String TAG = "spoddler.PlayerQueueEntry";
+
     final PlayableId playable;
     final String playbackId;
     private final PlayerConfiguration conf;
@@ -74,7 +77,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
         this.preloaded = preloaded;
         this.listener = listener;
 
-        LOGGER.trace("Created new {}.", this);
+        Log.v(TAG, format("Created new {%s}.", this));
     }
 
     @NotNull
@@ -97,10 +100,10 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
         contentMetrics = stream.metrics;
 
         if (playable instanceof EpisodeId && stream.episode != null) {
-            LOGGER.info("Loaded episode. {name: '{}', uri: {}, id: {}}", stream.episode.getName(), playable.toSpotifyUri(), playbackId);
+            Log.i(TAG, format("Loaded episode. {name: '{}', uri: {}, id: {}}", stream.episode.getName(), playable.toSpotifyUri(), playbackId));
         } else if (playable instanceof TrackId && stream.track != null) {
-            LOGGER.info("Loaded track. {name: '{}', artists: '{}', uri: {}, id: {}}", stream.track.getName(),
-                    Utils.artistsToString(stream.track.getArtistList()), playable.toSpotifyUri(), playbackId);
+            Log.i(TAG, format("Loaded track. {name: '{%s}', artists: '{%s}', uri: {%s}, id: {%s}}", stream.track.getName(),
+                    Utils.artistsToString(stream.track.getArtistList()), playable.toSpotifyUri(), playbackId));
         }
 
         crossfade = new CrossfadeController(playbackId, metadata.duration(), listener.metadataFor(playable).orElse(Collections.emptyMap()), conf);
@@ -122,7 +125,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
                 throw new UnsupportedEncodingException(stream.in.codec().toString());
         }
 
-        LOGGER.trace("Loaded {} codec. {of: {}, format: {}, playbackId: {}}", stream.in.codec(), stream.in.describe(), codec.getAudioFormat(), playbackId);
+        Log.v(TAG, format("Loaded {%s} codec. {of: {%s}, format: {%s}, playbackId: {%s}}", stream.in.codec(), stream.in.describe(), codec.getAudioFormat(), playbackId));
     }
 
     /**
@@ -207,7 +210,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
             tmp.toggle(false, null);
             tmp.clear();
 
-            LOGGER.debug("{} has been removed from output.", this);
+            Log.d(TAG, format("{} has been removed from output.", this));
         }
 
         synchronized (playbackLock) {
@@ -253,7 +256,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
         } catch (IOException | PlayableContentFeeder.ContentRestrictedException | CdnManager.CdnException | MercuryClient.MercuryException | Codec.CodecException ex) {
             close();
             listener.loadingError(this, ex, retried);
-            LOGGER.trace("{} terminated at loading.", this, ex);
+            Log.v(TAG, format("{%s} terminated at loading.", this), ex);
             return;
         }
 
@@ -303,7 +306,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
                 if (codec.writeSomeTo(output) == -1) {
                     try {
                         int time = codec.time();
-                        LOGGER.debug("Player time offset is {}. {id: {}}", metadata.duration() - time, playbackId);
+                        Log.d(TAG, format("Player time offset is {%i}. {id: {%s}}", metadata.duration() - time, playbackId));
                     } catch (Codec.CannotGetTimeException ignored) {
                     }
 
@@ -323,7 +326,7 @@ class PlayerQueueEntry extends PlayerQueue.Entry implements Closeable, Runnable,
 
         if (output != null) output.toggle(false, null);
         listener.playbackEnded(this);
-        LOGGER.trace("{} terminated.", this);
+        Log.v(TAG, format("{} terminated.", this));
     }
 
     private void checkInstants(int time) {

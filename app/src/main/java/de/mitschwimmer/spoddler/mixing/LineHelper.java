@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.mixing;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,7 @@ import java.util.List;
  * @author Gianlu
  */
 public final class LineHelper {
-    private static final Logger LOGGER = LogManager.getLogger(LineHelper.class);
+    private static final String TAG = "spoddler.LineHelper";
 
     private LineHelper() {
     }
@@ -56,7 +56,7 @@ public final class LineHelper {
         }
 
         if (list.size() > 1)
-            LOGGER.info("Multiple mixers available after keyword search: " + "Utils.mixersToString(list)");
+            Log.i(TAG, "Multiple mixers available after keyword search: " + "Utils.mixersToString(list)");
 
         return list.get(0);
     }
@@ -65,7 +65,7 @@ public final class LineHelper {
     public static SourceDataLine getLineFor(@NotNull PlayerConfiguration conf, @NotNull AudioFormat format) throws MixerException, LineUnavailableException {
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, format, AudioSystem.NOT_SPECIFIED);
         List<Mixer> mixers = findSupportingMixersFor(info);
-        if (conf.logAvailableMixers) LOGGER.info("Available mixers: " + "Utils.mixersToString(mixers)");
+        if (conf.logAvailableMixers) Log.i(TAG, "Available mixers: " + "Utils.mixersToString(mixers)");
         Mixer mixer = findMixer(mixers, conf.mixerSearchKeywords);
         return (SourceDataLine) mixer.getLine(info);
     }

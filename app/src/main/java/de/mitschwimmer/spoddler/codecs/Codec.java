@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.codecs;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +21,7 @@ import java.io.OutputStream;
  */
 public abstract class Codec implements Closeable {
     public static final int BUFFER_SIZE = 2048;
-    private static final Logger LOGGER = LogManager.getLogger(Codec.class);
+    private static final String TAG = "spoddler.Codec";
     protected final AbsChunkedInputStream audioIn;
     protected final float normalizationFactor;
     protected final int duration;
@@ -72,7 +72,7 @@ public abstract class Codec implements Closeable {
                     throw new IOException(String.format("Failed seeking, skip: %d, skipped: %d", skip, skipped));
             }
         } catch (IOException ex) {
-            LOGGER.fatal("Failed seeking!", ex);
+            Log.e(TAG, "Failed seeking!", ex);
         }
     }
 

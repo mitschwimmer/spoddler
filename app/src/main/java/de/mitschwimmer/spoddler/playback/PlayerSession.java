@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.playback;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,6 +26,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static java.lang.String.format;
+
 /**
  * Handles a session which is a container for entries (each with its own playback ID). This is responsible for higher level prev/next operations (using {@link PlayerQueue},
  * receiving and creating instants, dispatching events to the player and operating the sink.
@@ -33,7 +35,8 @@ import java.util.concurrent.Executors;
  * @author devgianlu
  */
 public class PlayerSession implements Closeable, PlayerQueueEntry.Listener {
-    private static final Logger LOGGER = LogManager.getLogger(PlayerSession.class);
+    private static final String TAG = "spoddler.PlayerSession";
+
     private final ExecutorService executorService = Executors.newCachedThreadPool(new NameThreadFactory((r) -> "player-session-" + r.hashCode()));
     private final Session session;
     private final AudioSink sink;
@@ -52,7 +55,7 @@ public class PlayerSession implements Closeable, PlayerQueueEntry.Listener {
         this.sessionId = sessionId;
         this.listener = listener;
         this.queue = new PlayerQueue();
-        LOGGER.info("Created new session. {id: {}}", sessionId);
+        Log.i(TAG, format("Created new session. {id: {%s}}", sessionId));
 
         sink.clearOutputs();
     }
@@ -145,7 +148,7 @@ public class PlayerSession implements Closeable, PlayerQueueEntry.Listener {
 
     @Override
     public void startedLoading(@NotNull PlayerQueueEntry entry) {
-        LOGGER.trace("{} started loading.", entry);
+        Log.v(TAG, format("{%s} started loading.", entry));
         if (entry == queue.head()) listener.startedLoading();
     }
 
@@ -177,7 +180,7 @@ public class PlayerSession implements Closeable, PlayerQueueEntry.Listener {
 
     @Override
     public void finishedLoading(@NotNull PlayerQueueEntry entry, @NotNull TrackOrEpisode metadata) {
-        LOGGER.trace("{} finished loading.", entry);
+        Log.v(TAG, format("{%s} finished loading.", entry));
         if (entry == queue.head()) listener.finishedLoading(metadata);
     }
 
@@ -266,7 +269,7 @@ public class PlayerSession implements Closeable, PlayerQueueEntry.Listener {
         }
 
         head.setOutput(out);
-        LOGGER.debug("{} has been added to the output. {sessionId: {}, pos: {}, reason: {}}", head, sessionId, pos, reason);
+        Log.d(TAG, format("{%s} has been added to the output. {sessionId: {%s}, pos: {%s}, reason: {%s}}", head, sessionId, pos, reason));
         return new EntryWithPos(head, pos);
     }
 

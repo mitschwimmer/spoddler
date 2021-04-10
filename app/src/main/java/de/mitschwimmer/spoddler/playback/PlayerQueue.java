@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.playback;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  * @author devgianlu
  */
 final class PlayerQueue implements Closeable {
-    private static final Logger LOGGER = LogManager.getLogger(PlayerQueue.class);
+    private static final String TAG = "spoddler.PlayerQueue";
     private final ExecutorService executorService = Executors.newCachedThreadPool(new NameThreadFactory((r) -> "player-queue-" + r.hashCode()));
     private PlayerQueueEntry head = null;
 
@@ -63,7 +63,7 @@ final class PlayerQueue implements Closeable {
         else head.setNext(entry);
         executorService.execute(entry);
 
-        LOGGER.trace("{} added to queue.", entry);
+        Log.v(TAG, String.format("{} added to queue.", entry));
     }
 
     /**
@@ -88,7 +88,7 @@ final class PlayerQueue implements Closeable {
         oldEntry.close();
         if (swapped) {
             executorService.execute(newEntry);
-            LOGGER.trace("{} swapped with {}.", oldEntry, newEntry);
+            Log.v(TAG, String.format("{} swapped with {}.", oldEntry, newEntry));
         }
     }
 
@@ -110,7 +110,7 @@ final class PlayerQueue implements Closeable {
             removed = head.remove(entry);
         }
 
-        if (removed) LOGGER.trace("{} removed from queue.", entry);
+        if (removed) Log.v(TAG, String.format("{} removed from queue.", entry));
     }
 
     /**
@@ -138,7 +138,7 @@ final class PlayerQueue implements Closeable {
         if (head != null) head.clear();
         executorService.shutdown();
 
-        LOGGER.trace("Queue has been cleared.");
+        Log.v(TAG, "Queue has been cleared.");
     }
 
     abstract static class Entry {

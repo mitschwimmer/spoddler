@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.mixing;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,7 +16,8 @@ import de.mitschwimmer.spoddler.soundadapter.AudioFormat;
  * @author Gianlu
  */
 public final class MixingLine extends InputStream {
-    private static final Logger LOGGER = LogManager.getLogger(MixingLine.class);
+    private static final String TAG = "spoddler.EventsMetadataPipe";
+
     boolean switchFormat = false;
     private GainAwareCircularBuffer fcb;
     private GainAwareCircularBuffer scb;
@@ -101,13 +102,13 @@ public final class MixingLine extends InputStream {
             return null;
         } else if (!this.format.matches(format)) {
             if (StreamConverter.canConvert(format, this.format)) {
-                LOGGER.info("Converting, '{}' -> '{}'", format, this.format);
+                Log.i(TAG, String.format("Converting, '{}' -> '{}'", format, this.format));
                 return StreamConverter.converter(format, this.format);
             } else {
                 if (fout == from && sout != null) sout.clear();
                 else if (sout == from && fout != null) fout.clear();
 
-                LOGGER.info("Switching format, '{}' -> '{}'", this.format, format);
+                Log.i(TAG, String.format("Switching format, '{}' -> '{}'", this.format, format));
                 this.format = format;
                 switchFormat = true;
                 return null;
@@ -167,7 +168,7 @@ public final class MixingLine extends InputStream {
 
             if (format != null) converter = setFormat(format, this);
             fe = enabled;
-            LOGGER.trace("Toggle first channel: " + enabled);
+            Log.d(TAG,"Toggle first channel: " + enabled);
         }
 
         @Override
@@ -214,7 +215,7 @@ public final class MixingLine extends InputStream {
 
             if (format != null) converter = setFormat(format, this);
             se = enabled;
-            LOGGER.trace("Toggle second channel: " + enabled);
+            Log.d(TAG, "Toggle second channel: " + enabled);
         }
 
         @Override

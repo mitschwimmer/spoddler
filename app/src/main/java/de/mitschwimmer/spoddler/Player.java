@@ -1,5 +1,7 @@
 package de.mitschwimmer.spoddler;
 
+import android.util.*;
+
 import com.google.gson.JsonObject;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.spotify.context.ContextTrackOuterClass.ContextTrack;
@@ -21,8 +23,6 @@ import de.mitschwimmer.spoddler.state.DeviceStateHandler;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -40,12 +40,15 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
+import static java.lang.String.format;
+
 /**
  * @author Gianlu
  */
 public class Player implements Closeable {
     public static final int VOLUME_MAX = 65536;
-    private static final Logger LOGGER = LogManager.getLogger(Player.class);
+    private static final String TAG = "spoddler.Player";
+
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NameThreadFactory((r) -> "release-line-scheduler-" + r.hashCode()));
     private final Session session;
     private final PlayerConfiguration conf;
@@ -63,9 +66,9 @@ public class Player implements Closeable {
         this.events = new EventsDispatcher(conf);
         this.sink = new AudioSink(conf, ex -> {
             if (ex instanceof LineHelper.MixerException || ex instanceof LineUnavailableException)
-                LOGGER.fatal("An error with the mixer occurred. This is likely a configuration issue, please consult the project repository.", ex);
+                Log.e(TAG, "An error with the mixer occurred. This is likely a configuration issue, please consult the project repository.", ex);
             else
-                LOGGER.fatal("Sink error!", ex);
+                Log.e(TAG,"Sink error!", ex);
 
             panicState(PlaybackMetrics.Reason.TRACK_ERROR);
         });
@@ -91,7 +94,7 @@ public class Player implements Closeable {
 
             @Override
             public void command(DeviceStateHandler.@NotNull Endpoint endpoint, @NotNull DeviceStateHandler.CommandBody data) throws InvalidProtocolBufferException {
-                LOGGER.debug("Received command: " + endpoint);
+                Log.d(TAG, "Received command: " + endpoint);
 
                 switch (endpoint) {
                     case Play:
@@ -138,7 +141,7 @@ public class Player implements Closeable {
                         state.updated();
                         break;
                     default:
-                        LOGGER.warn("Endpoint left unhandled: " + endpoint);
+                        Log.w(TAG, "Endpoint left unhandled: " + endpoint);
                         break;
                 }
             }
@@ -247,10 +250,10 @@ public class Player implements Closeable {
 
             loadSession(sessionId, play, true);
         } catch (IOException | MercuryClient.MercuryException ex) {
-            LOGGER.fatal("Failed loading context!", ex);
+            Log.e(TAG, "Failed loading context!", ex);
             panicState(null);
         } catch (AbsSpotifyContext.UnsupportedContextException ex) {
-            LOGGER.fatal("Cannot play local tracks!", ex);
+            Log.e(TAG, "Cannot play local tracks!", ex);
             panicState(null);
         }
     }
@@ -333,7 +336,7 @@ public class Player implements Closeable {
      * @param play      Whether the playback should start immediately
      */
     private void loadSession(@NotNull String sessionId, boolean play, boolean withSkip) {
-        LOGGER.debug("Loading session, id: {}, play: {}", sessionId, play);
+        Log.d(TAG, format("Loading session, id: {%s}, play: {%s}", sessionId, play));
 
         TransitionInfo trans = TransitionInfo.contextChange(state, withSkip);
 
@@ -365,9 +368,9 @@ public class Player implements Closeable {
             @Override
             public void loadingError(@NotNull Exception ex) {
                 if (ex instanceof PlayableContentFeeder.ContentRestrictedException) {
-                    LOGGER.error("Can't load track (content restricted).", ex);
+                    Log.e(TAG, "Can't load track (content restricted).", ex);
                 } else {
-                    LOGGER.fatal("Failed loading track.", ex);
+                    Log.e(TAG, "Failed loading track.", ex);
                     panicState(PlaybackMetrics.Reason.TRACK_ERROR);
                 }
             }
@@ -375,9 +378,9 @@ public class Player implements Closeable {
             @Override
             public void playbackError(@NotNull Exception ex) {
                 if (ex instanceof AbsChunkedInputStream.ChunkException)
-                    LOGGER.fatal("Failed retrieving chunk, playback failed!", ex);
+                    Log.e(TAG, "Failed retrieving chunk, playback failed!", ex);
                 else
-                    LOGGER.fatal("Playback error!", ex);
+                    Log.e(TAG, "Playback error!", ex);
 
                 panicState(PlaybackMetrics.Reason.TRACK_ERROR);
             }
@@ -404,7 +407,7 @@ public class Player implements Closeable {
 
             @Override
             public void playbackHalted(int chunk) {
-                LOGGER.debug("Playback halted on retrieving chunk {}.", chunk);
+                Log.d(TAG, format("Playback halted on retrieving chunk {%s}.", chunk));
                 state.setBuffering(true);
                 state.updated();
 
@@ -413,7 +416,7 @@ public class Player implements Closeable {
 
             @Override
             public void playbackResumedFromHalt(int chunk, long diff) {
-                LOGGER.debug("Playback resumed, chunk {} retrieved, took {}ms.", chunk, diff);
+                Log.d(TAG, format("Playback resumed, chunk {%s} retrieved, took {%s}ms.", chunk, diff));
                 state.setPosition(state.getPosition() - diff);
                 state.setBuffering(false);
                 state.updated();
@@ -440,7 +443,7 @@ public class Player implements Closeable {
 
                     return state.getCurrentPlayableOrThrow();
                 } else {
-                    LOGGER.fatal("Failed loading next song: " + next);
+                    Log.e(TAG, "Failed loading next song: " + next);
                     panicState(PlaybackMetrics.Reason.END_PLAY);
                     return null;
                 }
@@ -472,7 +475,7 @@ public class Player implements Closeable {
     private void loadTrack(boolean play, @NotNull TransitionInfo trans) {
         endMetrics(playerSession.currentPlaybackId(), trans.endedReason, playerSession.currentMetrics(), trans.endedWhen);
 
-        LOGGER.debug("Loading track, id: {}, session: {}, playback: {}, play: {}", state.getCurrentPlayable(), playerSession.sessionId(), playerSession.currentPlaybackId(), play);
+        Log.d(TAG, format("Loading track, id: {%s}, session: {%s}, playback: {%s}, play: {%s}", state.getCurrentPlayable(), playerSession.sessionId(), playerSession.currentPlaybackId(), play));
         String playbackId = playerSession.play(state.getCurrentPlayableOrThrow(), state.getPosition(), trans.startedReason);
         state.setPlaybackId(playbackId);
         session.eventService().sendEvent(new NewPlaybackIdEvent(state.getSessionId(), playbackId));
@@ -496,7 +499,7 @@ public class Player implements Closeable {
     }
 
     private void handlePlay(@NotNull JsonObject obj) {
-        LOGGER.debug("Loading context (play), uri: {}", DeviceStateHandler.PlayCommandHelper.getContextUri(obj));
+        Log.d(TAG, format("Loading context (play), uri: {%s}", DeviceStateHandler.PlayCommandHelper.getContextUri(obj)));
 
         try {
             String sessionId = state.load(obj);
@@ -506,26 +509,26 @@ public class Player implements Closeable {
             if (paused == null) paused = false;
             loadSession(sessionId, !paused, DeviceStateHandler.PlayCommandHelper.willSkipToSomething(obj));
         } catch (IOException | MercuryClient.MercuryException ex) {
-            LOGGER.fatal("Failed loading context!", ex);
+            Log.e(TAG, "Failed loading context!", ex);
             panicState(null);
         } catch (AbsSpotifyContext.UnsupportedContextException ex) {
-            LOGGER.fatal("Cannot play local tracks!", ex);
+            Log.e(TAG, "Cannot play local tracks!", ex);
             panicState(null);
         }
     }
 
     private void handleTransferState(@NotNull TransferStateOuterClass.TransferState cmd) {
-        LOGGER.debug("Loading context (transfer), uri: {}", cmd.getCurrentSession().getContext().getUri());
+        Log.d(TAG, format("Loading context (transfer), uri: {%s}", cmd.getCurrentSession().getContext().getUri()));
 
         try {
             String sessionId = state.transfer(cmd);
             events.contextChanged();
             loadSession(sessionId, !cmd.getPlayback().getIsPaused(), true);
         } catch (IOException | MercuryClient.MercuryException ex) {
-            LOGGER.fatal("Failed loading context!", ex);
+            Log.e(TAG, "Failed loading context!", ex);
             panicState(null);
         } catch (AbsSpotifyContext.UnsupportedContextException ex) {
-            LOGGER.fatal("Cannot play local tracks!", ex);
+            Log.e(TAG, "Cannot play local tracks!", ex);
             panicState(null);
         }
     }
@@ -621,7 +624,7 @@ public class Player implements Closeable {
             state.setPosition(0);
             loadTrack(next == StateWrapper.NextPlayable.OK_PLAY || next == StateWrapper.NextPlayable.OK_REPEAT, trans);
         } else {
-            LOGGER.fatal("Failed loading next song: " + next);
+            Log.e(TAG, "Failed loading next song: " + next);
             panicState(PlaybackMetrics.Reason.END_PLAY);
         }
     }
@@ -633,7 +636,7 @@ public class Player implements Closeable {
                 state.setPosition(0);
                 loadTrack(true, TransitionInfo.skippedPrev(state));
             } else {
-                LOGGER.fatal("Failed loading previous song: " + prev);
+                Log.e(TAG, "Failed loading previous song: " + prev);
                 panicState(null);
             }
         } else {
@@ -649,7 +652,7 @@ public class Player implements Closeable {
     private void loadAutoplay() {
         String context = state.getContextUri();
         if (context == null) {
-            LOGGER.fatal("Cannot load autoplay with null context!");
+            Log.e(TAG, "Cannot load autoplay with null context!");
             panicState(null);
             return;
         }
@@ -667,7 +670,7 @@ public class Player implements Closeable {
                 events.contextChanged();
                 loadSession(sessionId, true, false);
 
-                LOGGER.debug("Loading context for autoplay, uri: {}", newContext);
+                Log.d(TAG, format("Loading context for autoplay, uri: {}", newContext));
             } else if (resp.statusCode == 204) {
                 MercuryRequests.StationsWrapper station = session.mercury().sendSync(MercuryRequests.getStationFor(context));
                 String sessionId = state.loadContextWithTracks(station.uri(), station.tracks());
@@ -676,9 +679,9 @@ public class Player implements Closeable {
                 events.contextChanged();
                 loadSession(sessionId, true, false);
 
-                LOGGER.debug("Loading context for autoplay (using radio-apollo), uri: {}", state.getContextUri());
+                Log.d(TAG, format("Loading context for autoplay (using radio-apollo), uri: {}", state.getContextUri()));
             } else {
-                LOGGER.fatal("Failed retrieving autoplay context, code: " + resp.statusCode);
+                Log.e(TAG, "Failed retrieving autoplay context, code: " + resp.statusCode);
 
                 state.setPosition(0);
                 state.setState(true, false, false);
@@ -686,17 +689,17 @@ public class Player implements Closeable {
             }
         } catch (IOException | MercuryClient.MercuryException ex) {
             if (ex instanceof MercuryClient.MercuryException && ((MercuryClient.MercuryException) ex).code == 400) {
-                LOGGER.info("Cannot load autoplay for search context: " + context);
+                Log.i(TAG, "Cannot load autoplay for search context: " + context);
 
                 state.setPosition(0);
                 state.setState(true, true, false);
                 state.updated();
             } else {
-                LOGGER.fatal("Failed loading autoplay station!", ex);
+                Log.e(TAG, "Failed loading autoplay station!", ex);
                 panicState(null);
             }
         } catch (AbsSpotifyContext.UnsupportedContextException ex) {
-            LOGGER.fatal("Cannot play local tracks!", ex);
+            Log.e(TAG, "Cannot play local tracks!", ex);
             panicState(null);
         }
     }
@@ -798,7 +801,7 @@ public class Player implements Closeable {
             if (resp.code() == 200 && (body = resp.body()) != null)
                 return body.bytes();
             else
-                throw new IOException(String.format("Bad response code. {id: %s, code: %d}", image.hexId(), resp.code()));
+                throw new IOException(format("Bad response code. {id: %s, code: %d}", image.hexId(), resp.code()));
         }
     }
 
@@ -834,7 +837,7 @@ public class Player implements Closeable {
         scheduler.shutdown();
         events.close();
 
-        LOGGER.info("Closed player.");
+        Log.i(TAG, "Closed player.");
     }
 
     public interface EventsListener {

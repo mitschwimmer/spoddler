@@ -1,7 +1,7 @@
 package de.mitschwimmer.spoddler.events;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import android.util.*;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -17,7 +17,7 @@ import java.io.IOException;
  * @author devgianlu
  */
 public final class EventsShell implements Player.EventsListener, Session.@NotNull ReconnectionListener {
-    private static final Logger LOGGER = LogManager.getLogger(EventsShell.class);
+    private static final String TAG = "spoddler.EventsShell";
     private final Configuration conf;
     private final Runtime runtime;
 
@@ -35,9 +35,9 @@ public final class EventsShell implements Player.EventsListener, Session.@NotNul
 
         try {
             int exitCode = runtime.exec(command.trim()).waitFor();
-            LOGGER.trace("Executed shell command: {} -> {}", command, exitCode);
+            Log.d(TAG, String.format("Executed shell command: {%s} -> {%s}", command, exitCode));
         } catch (IOException | InterruptedException ex) {
-            LOGGER.error("Failed executing command: {}", command, ex);
+            Log.e(TAG, String.format("Failed executing command: {%s}", command), ex);
         }
     }
 
