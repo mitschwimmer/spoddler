@@ -93,7 +93,7 @@ public class Player implements Closeable {
             }
 
             @Override
-            public void command(DeviceStateHandler.@NotNull Endpoint endpoint, @NotNull DeviceStateHandler.CommandBody data) throws InvalidProtocolBufferException {
+            public void command(DeviceStateHandler.Endpoint endpoint, @NotNull DeviceStateHandler.CommandBody data) throws InvalidProtocolBufferException {
                 Log.d(TAG, "Received command: " + endpoint);
 
                 switch (endpoint) {
