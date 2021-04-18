@@ -8,6 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.gianlu.librespot.core.Session
+import xyz.gianlu.librespot.player.Player
+
 
 class MainActivity : AppCompatActivity() {
     private final val TAG: String = "spoddler.Main"
@@ -23,7 +25,7 @@ class MainActivity : AppCompatActivity() {
                 .setPreferredLocale("en")
                 .setDeviceType(Connect.DeviceType.SMARTPHONE)
                 .setDeviceName("librespot-java")
-                .userPass("karl@mitschwimmer.de", "rC3H8p6Wt8kQsw")
+                .userPass("mail@example.com", "rC3H8p6Wt8kQsw")
                 .setDeviceId(null).create()
 
             onSessionCreated(session)
@@ -32,6 +34,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun onSessionCreated(session: Session) {
         player = Player(PlayerConfiguration.Builder().build(), session)
-        Log.i(TAG, "Player is fine: " + player.isActive)
+        Log.i(TAG, "Logged in as: " + session.apWelcome().canonicalUsername)
     }
 }

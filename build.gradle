@@ -23,14 +23,13 @@ allprojects {
         flatDir {
             dirs 'libs'
         }
+        maven { url 'https://jitpack.io' }
+        maven {
+            url "https://oss.sonatype.org/content/repositories/snapshots"
+        }
     }
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
-}
-
-
-configurations.all {
-    exclude group: "log4j", module: "log4j"
 }
