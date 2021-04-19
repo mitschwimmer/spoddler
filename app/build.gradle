@@ -5,7 +5,7 @@ plugins {
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+    buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "de.mitschwimmer.spoddler"
@@ -29,6 +29,7 @@ android {
     }
 
     packagingOptions {
+        exclude 'log4j2.xml'
         exclude 'META-INF/DEPENDENCIES'
     }
 
@@ -42,13 +43,13 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1'
 
-    implementation ('xyz.gianlu.librespot:librespot-player:1.5.6-SNAPSHOT') {
-        exclude group: 'xyz.gianlu.librespot', module: 'librespot-sink';
-        exclude group: 'xyz.gianlu.zeroconf', module: 'zeroconf';
-        exclude group: 'org.apache.logging.log4j', module: 'log4j-api';
-        exclude group: 'org.apache.logging.log4j', module: 'log4j-core';
-        exclude group: 'com.electronwill.night-config', module: 'toml';
-        exclude group: 'com.electronwill.night-config', module: 'core';
+    implementation('xyz.gianlu.librespot:librespot-player:1.5.6-SNAPSHOT:thin') {
+        exclude group: 'xyz.gianlu.librespot', module: 'librespot-sink'
+        exclude group: 'xyz.gianlu.zeroconf', module: 'zeroconf'
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-core'
+        exclude group: 'com.electronwill.night-config', module: 'toml'
+        exclude group: 'com.electronwill.night-config', module: 'core'
     }
 
     implementation 'uk.uuid.slf4j:slf4j-android:1.7.30-0'

@@ -9,10 +9,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import xyz.gianlu.librespot.core.Session
 import xyz.gianlu.librespot.player.Player
-
+import xyz.gianlu.librespot.player.PlayerConfiguration
 
 class MainActivity : AppCompatActivity() {
-    private final val TAG: String = "spoddler.Main"
+    private val TAG: String = "spoddler.Main"
     private lateinit var player: Player
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +33,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onSessionCreated(session: Session) {
-        player = Player(PlayerConfiguration.Builder().build(), session)
+        player = Player(
+            PlayerConfiguration.Builder()
+                .setOutput(PlayerConfiguration.AudioOutput.CUSTOM)
+                .setOutputClass("xyz.gianlu.librespot.android.sink.AndroidSinkOutput")
+                .build(),
+            session
+        )
         Log.i(TAG, "Logged in as: " + session.apWelcome().canonicalUsername)
     }
 }
